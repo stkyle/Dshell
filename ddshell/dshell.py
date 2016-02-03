@@ -1,20 +1,44 @@
 """
 Dshell base classes
 """
+from __future__ import print_function
+
 import os
+import sys
+import types
 import struct
 import socket
 import logging
 import traceback
 
-import dpkt
+try:
+    import dpkt
+except ImportError as exc:
+    if exc.args[0] == 'No module named test':
+        msg =('The package `dpkt` has a dependency on the python standard '
+              'library `test` module. The test package is meant for internal ' 
+              'use by Python only, and is stripped from many third party '
+              'pre-packaged interpreters. '
+              '\Recomendation: Install the `test` package manually. '
+              'It may be downloaded here: '
+              'https://github.com/python/cpython/tree/master/Lib/test',)
+        exc.args += msg
+        print(exc)
+        # This is a hack to avoid the pystones dependancy
+        sys.modules['test'] = types.ModuleType('test')
+        sys.modules['test'].pystone = None
+        import dpkt
+        del sys.modules['test']
+    else:
+        raise exc
+        
 import util
 
 # find geographical and network information of an IP address
 # https://pypi.python.org/pypi/pygeoip/
 try:
     import pygeoip
-except:
+except Exception as exc:
     pass
 
 __version__ = '3.0s'
@@ -24,8 +48,19 @@ __version__ = '3.0s'
 # log statements don't occur in the absence of explicit
 # logging being enabled for 'dshell'.
 rootlogger = logging.getLogger('dshell')
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter(
+        '[%(asctime)s %(levelname)s %(name)s] %(message)s'))
+rootlogger.addHandler(handler)
+
 if rootlogger.level == logging.NOTSET:
     rootlogger.setLevel(logging.WARN)
+
+
+
+    
+
+
 
 
 class Decoder(object):

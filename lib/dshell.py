@@ -10,13 +10,10 @@ import traceback
 import dpkt
 import util
 
-
 # find geographical and network information of an IP address
 # https://pypi.python.org/pypi/pygeoip/
-GEOIP = False
 try:
     import pygeoip
-    GEOIP = True
 except:
     pass
 
@@ -31,45 +28,25 @@ if rootlogger.level == logging.NOTSET:
     rootlogger.setLevel(logging.WARN)
 
 
-if ('pygeoip' not in globals()):
-    rootlogger.warn('pygeoip not available.')
-
-
 class Decoder(object):
-
-    """
-    Base class that all decoders inherit
+    """Base class that all decoders inherit
 
     The Dshell class initializes the decoder to work in the framework
     and provides common functions such as CC/ASN lookup
 
-    Configuration attributes, settable by Dshell.__init__(attr=value,...) or in subclass __init__:
-            name: name of this decoder.
-            description: single-line description of this decoder
-            longdescription: multi-line description of this decoder
-            author: who to blame for this decoder
-
-            filter: default BPF filter for capture.
-
-            format: output format string for this decoder, overrides default for
-                            Please read how text, DB, etc.. Output() classes parse a format string.
-
-            optionsdict: optionParser compatible config, specific to decoder
-                     dict of {      'optname':{'default':..., 'help':..., etc...
-                                                                    <destination is auto-filled from optname>},
-                                            'optname':...   }
-                     'optname' is set by --deodername_optname=...  on command line
-                     and under [decodername] section in config file
-
-
-            cleanupinterval  - seconds with no activity before state is discarded (default 60)
-
-            chainable - set True to indicate this decoder can be chained (can pass output to another decoder)
-            subDecoder - decoder to pass output to, if not None.
-                                    (create new Data objects and call subDecoder.XHandler from XHandler, etc..)
-
-
+    Args:
+      name (str): name of this decoder.
+      description (str): single-line description of this decoder
+      longdescription (str): multi-line description of this decoder
+      author (str): who to blame for this decoder
+      filter (str): default BPF filter for capture.
+      format (str): output format string for this decoder, overrides default for
+      optionsdict (dict): optionParser compatible config, specific to decoder
+      cleanupinterval (int): seconds with no activity before state is discarded (default 60)
+      chainable (bool): set True to indicate this decoder can be chained (can pass output to another decoder)
+      subDecoder (Decoder): decoder to pass output to, if not None.
     """
+    GEOIP = False
 
     def __super__(self):
         """convenience function to get bound instance of superclass"""
@@ -83,8 +60,6 @@ class Decoder(object):
         self.author = kwargs.pop('author', 'xx')
         self.decodedbytes = kwargs.pop('decodedbytes', 0)
         self.count = kwargs.pop('count', 0)
-        """dict of options specific to this decoder in format
-                'optname':{configdict} translates to --decodername_optname"""
         self.optiondict = kwargs.pop('optiondict', {})
 
         # out holds the output plugin. If None, will inherit the global output
@@ -104,18 +79,17 @@ class Decoder(object):
         self.subDecoder = None  # decoder to pass output to for chaining
 
         # set flags to indicate if handlers are present
-        if 'packetHandler' in dir(self):
-            self.isPacketHandlerPresent = True
-        else:
-            self.isPacketHandlerPresent = False
-        if 'connectionHandler' in dir(self):
-            self.isConnectionHandlerPresent = True
-        else:
-            self.isConnectionHandlerPresent = False
-        if 'blobHandler' in dir(self):
-            self.isBlobHandlerPresent = True
-        else:
-            self.isBlobHandlerPresent = False
+        @property
+        def isPacketHandlerPresent(self):
+            return hasattr(self, 'packetHandler')
+
+        @property
+        def isConnectionHandlerPresent(self):
+            return hasattr(self, 'connectionHandler')
+
+        @property
+        def isBlobHandlerPresent(self):
+            return hasattr(self, 'blobHandler')
 
         # for connection tracking, if applicable
         self.connectionsDict = {}
@@ -144,35 +118,31 @@ class Decoder(object):
         except:
             self.geoasndb = None
 
-        # import kw args into class members
-        if kwargs:
-            self.__dict__.update(kwargs)
-
     ### convenience functions for alert output and logging ###
 
     def alert(self, *args, **kw):
         """sends alert to output handler
-        
+
         typically self.alert will be called with the decoded data and the 
         packet/connection info dict last, as follows:
-        
+
             self.alert(alert_arg, alert_arg2..., alert_data=value,
                        alert_data2=value2....,**conn/pkt.info())
-        
+
         Example: 
             self.alert(decoded_data,conn.info(), blob.info())
             Note: blob info overrides conn info
-        
+
         this will pass all information about the decoder, the connection, and 
         the specific event up to the output module
-        
+
         if a positional arg is a dict, it updates the kwargs
         if an arg is a list, it extends the arg list
         else it is appended to the arg list
-        
+
         all arguments are optional, at the very least you want to pass the 
         **pkt/conn.info() so all traffic info is available.
-        
+
         output modules handle this data as follows:
                  - the name of the alerting decoder is available in the 
                      "decoder" field
@@ -193,7 +163,7 @@ class Decoder(object):
                 oargs.extend(a)
             else:
                 oargs.append(a)
-                
+
         if 'decoder' not in kw:
             kw['decoder'] = self.name
 
@@ -215,7 +185,8 @@ class Decoder(object):
 
     def log(self, msg, level=logging.INFO):
         """logs msg at specified level (default of INFO is for -v/--verbose output)"""
-        self.out.log(msg, level=level)  # default level is INFO (verbose) can be overridden
+        self.out.log(
+            msg, level=level)  # default level is INFO (verbose) can be overridden
 
     def debug(self, msg):
         """logs msg at debug level"""
@@ -463,9 +434,14 @@ class Decoder(object):
         except Exception, e:
             self._exc(e)
 
+
+if ('pygeoip' not in globals()):
+    rootlogger.warn('pygeoip not available.')
+else:
+    Decoder.GEOIP = True
+
+
 # IP handler
-
-
 class IPDecoder(Decoder):
 
     """extend IP6Decoder to capture IPv4 and IPv6 data

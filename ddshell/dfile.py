@@ -1,21 +1,22 @@
-'''
+# -*- coding: utf-8 -*-
+"""
 Dshell external file class/utils
 for use in rippers, dumpers, etc.
 
 @author: amm
-'''
+"""
 import os
 from dshell import Blob
 from shutil import move
 from hashlib import md5
 
-'''
+"""
 Mode Constants
-'''
+"""
 FILEONDISK = 1  # Object refers to file already written to disk
 FILEINMEMORY = 2  # Object contains file contents in data member
 
-'''
+"""
 dfile -- Dshell file class.
 
 Extends blob for offset based file chunk (segment) reassembly.
@@ -31,7 +32,7 @@ A dfile object can have one of the following modes:
   FILEONDISK
   FILEINMEMORY
 
-'''
+"""
 
 
 class dfile(Blob):
@@ -58,29 +59,29 @@ class dfile(Blob):
             self.update(data)
 
     def __iter__(self):
-        '''
+        """
         Undefined
-        '''
+        """
         pass
 
     def __str__(self):
-        '''
+        """
         Returns filename (string)
-        '''
+        """
         return self.name
 
     def __repr__(self):
-        '''
+        """
         Returns filename (string)
-        '''
+        """
         return self.name
 
     def md5(self):
-        '''
+        """
         Returns md5 of file
           Calculate based on reassembly from FILEINMEMORY
           or loads from FILEONDISK
-        '''
+        """
         if self.mode == FILEINMEMORY:
             return md5(self.data()).hexdigest()
         elif self.mode == FILEONDISK:
@@ -93,9 +94,9 @@ class dfile(Blob):
             return None
 
     def load(self):
-        '''
+        """
         Load file from disk.  Converts object to mode FILEINMEMORY
-        '''
+        """
         if not self.mode == FILEONDISK:
             return False
         try:
@@ -107,7 +108,7 @@ class dfile(Blob):
             return False
 
     def write(self, path='.', name=None, clobber=False, errorHandler=None, padding=None, overlap=True):
-        '''
+        """
         Write file contents at location relative to path.
         Name on disk will be based on internal name unless one is provided.
 
@@ -115,7 +116,7 @@ class dfile(Blob):
           After writing to disk, mode will be changed to FILEONDISK.
         If mode is already FILEONDISK, file will be moved to new location.
 
-        '''
+        """
         olddiskpath = self.diskpath
         if name == None:
             name = self.name
